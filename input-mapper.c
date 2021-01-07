@@ -35,33 +35,38 @@ lua_State* init_lua(char* filename) {
 
 int main() {
     int num_devices = 2;
-    struct libevdev* mouse_dev = NULL;
-    struct libevdev* kbd_dev = NULL;
+    // TODO: Get paths from args
+    char* device_paths[] = {
+        "/dev/input/by-id/usb-Logitech_G502_HERO_Gaming_Mouse_0C7F38783538-event-mouse",
+        "/dev/input/by-id/usb-SINO_WEALTH_USB_KEYBOARD-event-kbd"
+    };
+    /* struct libevdev* mouse_dev = NULL; */
+    /* struct libevdev* kbd_dev = NULL; */
     struct libevdev_uinput *uidev = NULL;
     struct libevdev** devices = malloc(num_devices * sizeof(struct libevdev*));
     
-    mouse_dev = setup_device(mouse_path);
-    if (mouse_dev == NULL) {
-        printf("Problem setting up device!");
-        exit(1);
-    }
-    kbd_dev = setup_device(kbd_path);
-    if (kbd_dev == NULL) {
-        printf("Problem setting up device!");
-        exit(1);
+    for (int i = 0; i < num_devices; i++) {
+        devices[i] = setup_device(device_paths[i]);
+        if (devices[i] == NULL) {
+            printf("Problem setting up device!");
+            exit(1);
+        }
     }
 
+    // TODO: This is incredibly fragile and won't work 50% of the time
     for (int i = 1; i <= 484; i++) {
-        if (libevdev_enable_event_code(mouse_dev, EV_KEY, i, NULL) != 0) {
+        if (libevdev_enable_event_code(devices[0], EV_KEY, i, NULL) != 0) {
             printf("%s\n", "Enabling event codes failed!");
             exit(1);
         }
     }
-    if (libevdev_uinput_create_from_device(mouse_dev, LIBEVDEV_UINPUT_OPEN_MANAGED, &uidev) != 0) {
+    // TODO: This is incredibly fragile and won't work 50% of the time
+    if (libevdev_uinput_create_from_device(devices[0], LIBEVDEV_UINPUT_OPEN_MANAGED, &uidev) != 0) {
         printf("%s\n", "Virtual device creation failed!");
         exit(1);
     }
 
+    // TODO: getenv("HOME", xdg, etc
     lua_State *L = init_lua("/home/XXXXXXX/.config/input-mapper/input-mapper.lua");
     if (L == NULL) {
         printf("%s\n", "Unable to run lua config!");
@@ -117,11 +122,10 @@ int main() {
     }
 
     for (;;) {
-        if (libevdev_has_event_pending(mouse_dev)) {
-            read_device(mouse_dev);
-        }
-        if (libevdev_has_event_pending(kbd_dev)) {
-            read_device(kbd_dev);
+        for (int i = 0; i < num_devices; i++) {
+            if (libevdev_has_event_pending(devices[i])) {
+                read_device(devices[i]);
+            }
         }
         usleep(5000);
     }
