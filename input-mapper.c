@@ -33,22 +33,20 @@ lua_State* init_lua(char* filename) {
     return L;
 }
 
-int main() {
-    int num_devices = 2;
-    // TODO: Get paths from args
-    char* device_paths[] = {
-        "/dev/input/by-id/usb-Logitech_G502_HERO_Gaming_Mouse_0C7F38783538-event-mouse",
-        "/dev/input/by-id/usb-SINO_WEALTH_USB_KEYBOARD-event-kbd"
-    };
-    /* struct libevdev* mouse_dev = NULL; */
-    /* struct libevdev* kbd_dev = NULL; */
-    struct libevdev_uinput *uidev = NULL;
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("%s\n", "No devices specified!");
+        exit(1);
+    }
+    int num_devices = argc - 1;
     struct libevdev** devices = malloc(num_devices * sizeof(struct libevdev*));
+    struct libevdev_uinput *uidev = NULL;
     
     for (int i = 0; i < num_devices; i++) {
-        devices[i] = setup_device(device_paths[i]);
+        devices[i] = setup_device(argv[i+1]);
         if (devices[i] == NULL) {
-            printf("Problem setting up device!");
+            printf("%s\n", "Problem setting up device!");
             exit(1);
         }
     }
@@ -60,6 +58,7 @@ int main() {
             exit(1);
         }
     }
+
     // TODO: This is incredibly fragile and won't work 50% of the time
     if (libevdev_uinput_create_from_device(devices[0], LIBEVDEV_UINPUT_OPEN_MANAGED, &uidev) != 0) {
         printf("%s\n", "Virtual device creation failed!");
